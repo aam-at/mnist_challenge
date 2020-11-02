@@ -1,29 +1,29 @@
 """Evaluates a model against examples from a .npy file as specified
    in config.json"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from datetime import datetime
 import json
 import math
 import os
 import sys
 import time
-
-import tensorflow as tf
-from tensorflow.examples.tutorials.mnist import input_data
+from datetime import datetime
 
 import numpy as np
+import tensorflow as tf
+import tensorflow.keras.datasets.mnist as mnist
 
 from model import Model
 
+tf.compat.v1.disable_v2_behavior()
+
+
 def run_attack(checkpoint, x_adv, epsilon):
-  mnist = input_data.read_data_sets('MNIST_data', one_hot=False)
+  (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
   model = Model()
 
-  saver = tf.train.Saver()
+  saver = tf.compat.v1.train.Saver()
 
   num_eval_examples = 10000
   eval_batch_size = 64
@@ -31,7 +31,7 @@ def run_attack(checkpoint, x_adv, epsilon):
   num_batches = int(math.ceil(num_eval_examples / eval_batch_size))
   total_corr = 0
 
-  x_nat = mnist.test.images
+  x_nat = x_test.reshape(-1, 784) / 255.0
   l_inf = np.amax(np.abs(x_nat - x_adv))
   
   if l_inf > epsilon + 0.0001:
@@ -41,7 +41,7 @@ def run_attack(checkpoint, x_adv, epsilon):
 
   y_pred = [] # label accumulator
 
-  with tf.Session() as sess:
+  with tf.compat.v1.Session() as sess:
     # Restore the checkpoint
     saver.restore(sess, checkpoint)
 
@@ -51,7 +51,7 @@ def run_attack(checkpoint, x_adv, epsilon):
       bend = min(bstart + eval_batch_size, num_eval_examples)
 
       x_batch = x_adv[bstart:bend, :]
-      y_batch = mnist.test.labels[bstart:bend]
+      y_batch = y_test[bstart:bend]
 
       dict_adv = {model.x_input: x_batch,
                   model.y_input: y_batch}
